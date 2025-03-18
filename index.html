@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>9upper 遊戲（AI 版）</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; margin: 50px; }
+        #explanation { margin-top: 20px; font-size: 18px; color: #333; display: none; }
+        button { font-size: 20px; padding: 10px 20px; cursor: pointer; display: block; margin: 20px auto; }
+        #revealButton, #newTopicButton { display: none; }
+        #word { font-size: 28px; font-weight: bold; }
+        #hint { font-size: 16px; color: gray; margin-top: 5px; }
+    </style>
+    <script>
+        const OPENAI_API_KEY = "YOUR_OPENAI_API_KEY"; // ⚠️ 請換成你的 API Key，或使用後端安全處理
+
+        let currentTopic = {};
+
+        async function fetchNewTopic() {
+            try {
+                const response = await fetch("https://api.openai.com/v1/completions", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${OPENAI_API_KEY}`
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-3.5-turbo",
+                        messages: [{
+                            role: "system", 
+                            content: "請提供一個隨機冷知識的詞彙、3個可能的主題（其中一個是真的），以及該詞彙的解釋。格式：{\"word\": \"詞彙\", \"hint\": \"主題1 / 主題2 / 主題3\", \"explanation\": \"該詞彙的解釋\"}" 
+                        }],
+                        max_tokens: 100
+                    })
+                });
+                
+                const data = await response.json();
+                currentTopic = JSON.parse(data.choices[0].message.content);
+                
+                document.getElementById("word").innerText = currentTopic.word;
+                document.getElementById("hint").innerText = currentTopic.hint;
+                document.getElementById("explanation").innerText = "";
+                document.getElementById("explanation").style.display = "none";
+                document.getElementById("revealButton").style.display = "none";
+                document.getElementById("newTopicButton").style.display = "none";
+                document.getElementById("readyButton").style.display = "block";
+                document.getElementById("readyButton").innerText = "準備好";
+                document.getElementById("readyButton").disabled = false;
+            } catch (error) {
+                console.error("Error fetching topic:", error);
+                document.getElementById("word").innerText = "無法獲取題目";
+                document.getElementById("hint").innerText = "請檢查 API 設定";
+            }
+        }
+
+        function showExplanation() {
+            let button = document.getElementById("readyButton");
+            let explanationBox = document.getElementById("explanation");
+            let timeLeft = 15;
+            button.disabled = true;
+            button.innerText = `倒數 ${timeLeft}s`;
+            
+            if (currentTopic.explanation) {
+                explanationBox.innerText = currentTopic.explanation;
+                explanationBox.style.display = "block";
+            } else {
+                explanationBox.innerText = "(無解釋資料)";
+            }
+            
+            let countdown = setInterval(() => {
+                timeLeft--;
+                button.innerText = `倒數 ${timeLeft}s`;
+                if (timeLeft <= 0) {
+                    clearInterval(countdown);
+                    button.style.display = "none";
+                    explanationBox.style.display = "none";
+                    document.getElementById("revealButton").style.display = "block";
+                }
+            }, 1000);
+        }
+
+        function revealExplanation() {
+            let explanationBox = document.getElementById("explanation");
+            explanationBox.innerText = currentTopic.explanation;
+            explanationBox.style.display = "block";
+            document.getElementById("revealButton").style.display = "none";
+            document.getElementById("newTopicButton").style.display = "block";
+        }
+        
+        document.addEventListener("DOMContentLoaded", fetchNewTopic);
+    </script>
+</head>
+<body>
+    <h1>9upper 遊戲（AI 版）</h1>
+    <p><strong>詞彙：</strong> <span id="word"></span></p>
+    <p id="hint"></p>
+    <button id="readyButton" onclick="showExplanation()">準備好</button>
+    <p id="explanation" style="display: none;"></p>
+    <button id="revealButton" onclick="revealExplanation()">開估</button>
+    <button id="newTopicButton" onclick="fetchNewTopic()">新題目</button>
+</body>
+</html>
